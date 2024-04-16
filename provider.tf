@@ -13,3 +13,12 @@ terraform {
     }
   }
 }
+
+# Configure the Snowflake Provider
+provider "snowflake" {
+  username   = "your_snowflake_user"
+  password   = "your_snowflake_password"
+  account    = "your_snowflake_account"
+  role       = "your_snowflake_role"
+  region     = "your_snowflake_region"
+}
