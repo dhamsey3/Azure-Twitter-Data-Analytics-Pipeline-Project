@@ -48,3 +48,80 @@ resource "azurerm_function_app" "twitter_processor" {
     environment = "production"
   }
 }
+
+### Networking and Security
+
+resource "azurerm_virtual_network" "main" {
+  name                = "main-vnet"
+  address_space       = ["10.0.0.0/16"]
+  location            = var.location
+  resource_group_name = var.resource_group_name
+}
+
+resource "azurerm_subnet" "internal" {
+  name                 = "internal-subnet"
+  resource_group_name  = var.resource_group_name
+  virtual_network_name = azurerm_virtual_network.main.name
+  address_prefixes     = ["10.0.1.0/24"]
+}
+
+# Network Security Groups (NSGs)
+
+resource "azurerm_network_security_group" "function_nsg" {
+  name                = "function-nsg"
+  location            = var.location
+  resource_group_name = var.resource_group_name
+}
+
+resource "azurerm_subnet_network_security_group_association" "function_nsg_association" {
+  subnet_id                 = azurerm_subnet.internal.id
+  network_security_group_id = azurerm_network_security_group.function_nsg.id
+}
+
+# Data Ingestion and Processing
+
+resource "azurerm_eventhub_namespace" "main" {
+  name                = "eventhubnamespace"
+  location            = var.location
+  resource_group_name = var.resource_group_name
+  sku                 = "Standard"
+}
+
+resource "azurerm_eventhub" "main" {
+  name                = "twitterstream"
+  namespace_name      = azurerm_eventhub_namespace.main.name
+  resource_group_name = var.resource_group_name
+  partition_count     = 2
+  message_retention   = 1
+}
+
+# Integration with Snowflake
+
+resource "azurerm_data_factory" "main" {
+  name                = "adf-main"
+  location            = var.location
+  resource_group_name = var.resource_group_name
+}
+
+resource "azurerm_data_factory_linked_service_azure_blob_storage" "main" {
+  name                = "blobstorage-linked-service"
+  resource_group_name = var.resource_group_name
+  data_factory_name   = azurerm_data_factory.main.name
+  connection_string   = azurerm_storage_account.main.primary_connection_string
+}
+
+# Monitoring and Logging
+
+resource "azurerm_application_insights" "main" {
+  name                = "appinsights-main"
+  location            = var.location
+  resource_group_name = var.resource_group_name
+  application_type    = "web"
+}
+
+resource "azurerm_log_analytics_workspace" "main" {
+  name                = "loganalytics-main"
+  location            = var.location
+  resource_group_name = var.resource_group_name
+  sku                 = "PerGB2018"
+}
