@@ -1,0 +1,7 @@
+resource_group_name = "azure-twitter-analytics-rg"
+location            = "East US"
+storage_account_name= "aztwitterstor001"
+function_app_name   = "twitter-data-function-app"
+snowflake_user      = "admin"
+snowflake_password  = "ytehsfsr3shz6"
+snowflake_account   = "xy12345.us-east-1"
