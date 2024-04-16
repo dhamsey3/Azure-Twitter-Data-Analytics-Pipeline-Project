@@ -1,0 +1,46 @@
+name: 'Terraform Deploy to Azure'
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build:
+    name: 'Build'
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: 'Setup Terraform'
+      uses: hashicorp/setup-terraform@v1
+      with:
+        terraform_version: '1.0.0'
+
+    - name: 'Azure Login'
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: 'Terraform Init'
+      run: terraform init
+
+    - name: 'Terraform Validate'
+      run: terraform validate
+
+    - name: 'Terraform Plan'
+      run: terraform plan
+
+    - name: 'Terraform Apply'
+      if: github.ref == 'refs/heads/main'
+      run: terraform apply -auto-approve
+      env:
+        TF_VAR_snowflake_user: ${{ secrets.SNOWFLAKE_USER }}
+        TF_VAR_snowflake_password: ${{ secrets.SNOWFLAKE_PASSWORD }}
+        TF_VAR_snowflake_account: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+
+    - name: 'Cleanup'
+      if: always()
+      run: echo "Clean up actions if necessary"
