@@ -16,38 +16,37 @@ resource "azurerm_storage_account" "storage" {
 }
 
 # Function App and Application Insights for monitoring
-resource "azurerm_function_app" "function_app" {
-  name                       = "TwitterIngestionFunction"
-  location                   = azurerm_resource_group.rg.location
-  resource_group_name        = azurerm_resource_group.rg.name
-  storage_account_name       = azurerm_storage_account.storage.name
-  storage_account_access_key = azurerm_storage_account.storage.primary_access_key
-  os_type                    = "linux"
+resource "azurerm_function_app" "twitter_processor" {
+  name                = var.function_app_name
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  app_service_plan_id = azurerm_app_service_plan.function_app_plan.id
+  storage_account_name= azurerm_storage_account.main.name
+  os_type             = "linux"
+
   app_settings = {
-    "FUNCTIONS_WORKER_RUNTIME" = "python"
-    "TWITTER_API_KEY"          = var.twitter_api_key
-    "TWITTER_API_SECRET_KEY"   = var.twitter_api_secret_key
-    "TWITTER_BEARER_TOKEN"     = var.twitter_bearer_token
+    "FUNCTIONS_WORKER_RUNTIME"           = "python"
+    "AzureWebJobsStorage"                = azurerm_storage_account.main.primary_connection_string
+    "FUNCTIONS_EXTENSION_VERSION"        = "~3"
+    "SNOWFLAKE_USER"                     = var.snowflake_user
+    "SNOWFLAKE_PASSWORD"                 = var.snowflake_password
+    "SNOWFLAKE_ACCOUNT"                  = var.snowflake_account
   }
+
   identity {
     type = "SystemAssigned"
   }
-  service_plan_id = azurerm_app_service_plan.app_service_plan.id
-  subnet_id       = azurerm_subnet.subnet.id
-}
 
-resource "azurerm_app_service_plan" "app_service_plan" {
-  name                = "analyticsServicePlan"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-  kind                = "Linux"
-  reserved            = true
-  sku {
-    tier = "Standard"
-    size = "S1"
+  connection_strings {
+    name  = "SNOWFLAKE_DB_CONNECTION"
+    type  = "SQLAzure"
+    value = "Server=${var.snowflake_account};Database=<database_name>;User Id=${var.snowflake_user};Password=${var.snowflake_password};"
+  }
+
+  tags = {
+    environment = "production"
   }
 }
-
 
 # Snowflake Warehouse
 resource "snowflake_warehouse" "warehouse" {
@@ -88,7 +87,7 @@ resource "snowflake_table" "table" {
 }
 
 
-# Network Security 
+# Network Security Group
 resource "azurerm_virtual_network" "vnet" {
   name                = "analyticsVNet"
   address_space       = ["10.0.0.0/16"]

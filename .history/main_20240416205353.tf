@@ -1,5 +1,3 @@
-
-
 # Resource Group
 resource "azurerm_resource_group" "rg" {
   name     = "analyticsResourceGroup"
@@ -16,38 +14,37 @@ resource "azurerm_storage_account" "storage" {
 }
 
 # Function App and Application Insights for monitoring
-resource "azurerm_function_app" "function_app" {
-  name                       = "TwitterIngestionFunction"
-  location                   = azurerm_resource_group.rg.location
-  resource_group_name        = azurerm_resource_group.rg.name
-  storage_account_name       = azurerm_storage_account.storage.name
-  storage_account_access_key = azurerm_storage_account.storage.primary_access_key
-  os_type                    = "linux"
+resource "azurerm_function_app" "twitter_processor" {
+  name                = var.function_app_name
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  app_service_plan_id = azurerm_app_service_plan.function_app_plan.id
+  storage_account_name= azurerm_storage_account.main.name
+  os_type             = "linux"
+
   app_settings = {
-    "FUNCTIONS_WORKER_RUNTIME" = "python"
-    "TWITTER_API_KEY"          = var.twitter_api_key
-    "TWITTER_API_SECRET_KEY"   = var.twitter_api_secret_key
-    "TWITTER_BEARER_TOKEN"     = var.twitter_bearer_token
+    "FUNCTIONS_WORKER_RUNTIME"           = "python"
+    "AzureWebJobsStorage"                = azurerm_storage_account.main.primary_connection_string
+    "FUNCTIONS_EXTENSION_VERSION"        = "~3"
+    "SNOWFLAKE_USER"                     = var.snowflake_user
+    "SNOWFLAKE_PASSWORD"                 = var.snowflake_password
+    "SNOWFLAKE_ACCOUNT"                  = var.snowflake_account
   }
+
   identity {
     type = "SystemAssigned"
   }
-  service_plan_id = azurerm_app_service_plan.app_service_plan.id
-  subnet_id       = azurerm_subnet.subnet.id
-}
 
-resource "azurerm_app_service_plan" "app_service_plan" {
-  name                = "analyticsServicePlan"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-  kind                = "Linux"
-  reserved            = true
-  sku {
-    tier = "Standard"
-    size = "S1"
+  connection_strings {
+    name  = "SNOWFLAKE_DB_CONNECTION"
+    type  = "SQLAzure"
+    value = "Server=${var.snowflake_account};Database=<database_name>;User Id=${var.snowflake_user};Password=${var.snowflake_password};"
+  }
+
+  tags = {
+    environment = "production"
   }
 }
-
 
 # Snowflake Warehouse
 resource "snowflake_warehouse" "warehouse" {
@@ -88,56 +85,27 @@ resource "snowflake_table" "table" {
 }
 
 
-# Network Security 
-resource "azurerm_virtual_network" "vnet" {
-  name                = "analyticsVNet"
-  address_space       = ["10.0.0.0/16"]
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-}
-
-resource "azurerm_subnet" "subnet" {
-  name                 = "analyticsSubnet"
-  resource_group_name  = azurerm_resource_group.rg.name
-  virtual_network_name = azurerm_virtual_network.vnet.name
-  address_prefixes     = ["10.0.1.0/24"]
-}
-
+# Network Security Group
 resource "azurerm_network_security_group" "nsg" {
-  name                = "analyticsNSG"
+  name                = "functionapp-nsg"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
-
-  security_rule {
-    name                       = "AllowHTTP"
-    priority                   = 100
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "80"
-    source_address_prefix      = "Internet"
-    destination_address_prefix = "*"
-  }
-
-  security_rule {
-    name                       = "AllowHTTPS"
-    priority                   = 110
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "443"
-    source_address_prefix      = "Internet"
-    destination_address_prefix = "*"
-  }
 }
 
-resource "azurerm_subnet_network_security_group_association" "subnet_nsg_association" {
-  subnet_id                 = azurerm_subnet.subnet.id
-  network_security_group_id = azurerm_network_security_group.nsg.id
+# Application Insights for monitoring Function App
+resource "azurerm_application_insights" "appinsights" {
+  name                = "funcappai"
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+  application_type    = "web"
 }
 
+# Assigning an identity to Function App
+resource "azurerm_user_assigned_identity" "identity" {
+  resource_group_name = azurerm_resource_group.rg.name
+  location            = azurerm_resource_group.rg.location
+  name                = "funcapp-identity"
+}
 
 resource "azurerm_function_app" "function_app" {
   ...
