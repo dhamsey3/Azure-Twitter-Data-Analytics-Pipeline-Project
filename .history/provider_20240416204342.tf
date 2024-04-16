@@ -16,9 +16,10 @@ terraform {
 
 # Configure the Snowflake Provider
 provider "snowflake" {
-  username   = var.snowflake_user
-  password   = var.snowflake_password
-  account    = var.snowflake_account
-  role       = "SYSADMIN"
-  region     = "us-west-2"
+  username   = varyour_snowflake_user"
+  password   = "your_snowflake_password"
+  account    = "your_snowflake_account"
+  role       = "your_snowflake_role"
+  region     = "your_snowflake_region"
 }
+snowflake_user
