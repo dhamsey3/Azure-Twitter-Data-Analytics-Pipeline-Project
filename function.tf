@@ -42,3 +42,25 @@ resource "azurerm_function_app" "twitter_processor" {
     environment = "production"
   }
 }
+
+
+# Integrate Azure Key Vault
+
+resource "azurerm_key_vault" "main" {
+  name                = "kv-${var.function_app_name}"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  sku_name            = "standard"
+
+  tenant_id = data.azurerm_client_config.current.tenant_id
+  soft_delete_enabled = true
+  purge_protection_enabled = true
+}
+
+resource "azurerm_key_vault_secret" "snowflake_user" {
+  name         = "SnowflakeUser"
+  value        = var.snowflake_user
+  key_vault_id = azurerm_key_vault.main.id
+}
+
+
