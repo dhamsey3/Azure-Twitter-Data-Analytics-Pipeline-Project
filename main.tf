@@ -138,16 +138,6 @@ resource "azurerm_subnet_network_security_group_association" "subnet_nsg_associa
   network_security_group_id = azurerm_network_security_group.nsg.id
 }
 
-
-resource "azurerm_function_app" "function_app" {
-  ...
-  identity {
-    type         = "UserAssigned"
-    identity_ids = [azurerm_user_assigned_identity.identity.id]
-  }
-  ...
-}
-
 # Azure Data Factory
 resource "azurerm_data_factory" "data_factory" {
   name                = "adf-twitteranalytics"
@@ -160,17 +150,6 @@ resource "azurerm_data_factory_linked_service_snowflake" "snowflake" {
   name                = "SnowflakeLinkedService"
   resource_group_name = azurerm_resource_group.rg.name
   data_factory_name   = azurerm_data_factory.data_factory.name
-  ...
-}
-
-# Example usage in Azure Function for Twitter API integration
-resource "azurerm_function_app" "function_app" {
-  ...
-  app_settings = {
-    "TWITTER_API_KEY"       = var.twitter_api_key
-    "TWITTER_API_SECRET_KEY" = var.twitter_api_secret_key
-    "TWITTER_BEARER_TOKEN"  = var.twitter_bearer_token
-  }
   ...
 }
 
