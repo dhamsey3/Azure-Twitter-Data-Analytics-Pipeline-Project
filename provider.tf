@@ -20,5 +20,5 @@ provider "snowflake" {
   password   = var.snowflake_password
   account    = var.snowflake_account
   role       = "SYSADMIN"
-  region     = "us-west-2"
+  region     = "East US"
 }
